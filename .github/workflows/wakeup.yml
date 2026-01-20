@@ -32,6 +32,9 @@ jobs:
           echo "File permissions: $(ls -la ~/.claude/claude_code_credentials.json)"
 
       - name: Send Wake-Up Message
+        env:
+          # Ensure we use official Anthropic API, not custom proxy
+          ANTHROPIC_BASE_URL: https://api.anthropic.com
         run: |
           # Array of varied, token-intensive prompts
           PROMPTS=(
