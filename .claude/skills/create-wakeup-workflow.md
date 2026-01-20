@@ -42,13 +42,9 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Configure Claude Credentials
-        run: |
-          mkdir -p ~/.claude
-          echo "${{ secrets.CLAUDE_CREDENTIALS }}" > ~/.claude/claude_code_credentials.json
-          chmod 600 ~/.claude/claude_code_credentials.json
-
       - name: Send Wake-Up Message
+        env:
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
         run: |
           # Array of varied, token-intensive prompts
           PROMPTS=(
@@ -77,10 +73,10 @@ jobs:
 After creating the workflow file, remind the user to:
 
 1. **Set up the GitHub Secret:**
-   - Get their Claude credentials from `~/.claude/claude_code_credentials.json` on their local machine
+   - Get their Claude API token by running `claude setup-token` locally
    - Go to: Repository Settings → Secrets and variables → Actions
-   - Create a new secret named `CLAUDE_CREDENTIALS`
-   - Paste the entire JSON content as the secret value
+   - Create a new secret named `ANTHROPIC_AUTH_TOKEN`
+   - Paste the API token (starts with `sk-ant-`) as the secret value
 
 2. **Commit and push the workflow file to GitHub**
 
