@@ -8,6 +8,7 @@ on:
 jobs:
   wakeup:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Setup Node.js
