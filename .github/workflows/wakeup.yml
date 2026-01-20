@@ -21,8 +21,15 @@ jobs:
       - name: Configure Claude Credentials
         run: |
           mkdir -p ~/.claude
-          echo "${{ secrets.CLAUDE_CREDENTIALS }}" > ~/.claude/claude_code_credentials.json
+          cat > ~/.claude/claude_code_credentials.json << 'EOF'
+          ${{ secrets.CLAUDE_CREDENTIALS }}
+          EOF
           chmod 600 ~/.claude/claude_code_credentials.json
+
+      - name: Verify Credentials
+        run: |
+          echo "Credentials file contents:"
+          cat ~/.claude/claude_code_credentials.json
 
       - name: Send Wake-Up Message
         run: |
