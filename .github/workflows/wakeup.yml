@@ -22,7 +22,11 @@ jobs:
       - name: Configure Claude Credentials
         run: |
           mkdir -p ~/.claude
-          printf '%s' "${{ secrets.CLAUDE_CREDENTIALS }}" > ~/.claude/claude_code_credentials.json
+          cat > ~/.claude/claude_code_credentials.json << 'EOF'
+{
+  "oauthToken": "${{ secrets.CLAUDE_OAUTH_TOKEN }}"
+}
+EOF
           chmod 600 ~/.claude/claude_code_credentials.json
 
       - name: Verify Credentials File
@@ -30,6 +34,7 @@ jobs:
           echo "File exists: $(test -f ~/.claude/claude_code_credentials.json && echo 'YES' || echo 'NO')"
           echo "File size: $(wc -c < ~/.claude/claude_code_credentials.json) bytes"
           echo "File permissions: $(ls -la ~/.claude/claude_code_credentials.json)"
+          echo "First 50 chars (redacted): $(head -c 50 ~/.claude/claude_code_credentials.json | sed 's/[a-zA-Z0-9]/x/g')..."
 
       - name: Send Wake-Up Message
         env:
