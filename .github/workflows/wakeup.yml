@@ -22,8 +22,14 @@ jobs:
       - name: Configure Claude Credentials
         run: |
           mkdir -p ~/.claude
-          echo '${{ secrets.CLAUDE_CREDENTIALS }}' > ~/.claude/claude_code_credentials.json
+          printf '%s' "${{ secrets.CLAUDE_CREDENTIALS }}" > ~/.claude/claude_code_credentials.json
           chmod 600 ~/.claude/claude_code_credentials.json
+
+      - name: Verify Credentials File
+        run: |
+          echo "File exists: $(test -f ~/.claude/claude_code_credentials.json && echo 'YES' || echo 'NO')"
+          echo "File size: $(wc -c < ~/.claude/claude_code_credentials.json) bytes"
+          echo "File permissions: $(ls -la ~/.claude/claude_code_credentials.json)"
 
       - name: Send Wake-Up Message
         run: |
