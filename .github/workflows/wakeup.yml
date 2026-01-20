@@ -2,7 +2,7 @@ name: Claude Wake-Up Automation
 
 on:
   schedule:
-    - cron: '0 17 * * *'  # 6:00 AM NZDT (UTC+13) = 17:00 UTC
+    - cron: '43 20 * * *'  # 9:43 AM NZDT (UTC+13) = 20:43 UTC
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
