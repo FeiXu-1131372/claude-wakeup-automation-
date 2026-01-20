@@ -18,9 +18,13 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Configure Claude Credentials
+        run: |
+          mkdir -p ~/.claude
+          echo '${{ secrets.CLAUDE_CREDENTIALS }}' > ~/.claude/claude_code_credentials.json
+          chmod 600 ~/.claude/claude_code_credentials.json
+
       - name: Send Wake-Up Message
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Array of varied, token-intensive prompts
           PROMPTS=(
