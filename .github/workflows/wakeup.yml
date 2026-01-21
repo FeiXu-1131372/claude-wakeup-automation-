@@ -20,7 +20,7 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Configure Claude Credentials
-        run: mkdir -p ~/.claude && echo '{"oauthToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}"}' > ~/.claude/.credentials.json && chmod 600 ~/.claude/.credentials.json
+        run: mkdir -p ~/.claude && echo '{"claudeAiOauth":{"accessToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","refreshToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","scopes":["user:inference","user:profile"],"subscriptionType":"pro"}}' > ~/.claude/.credentials.json && chmod 600 ~/.claude/.credentials.json
 
       - name: Send Wake-Up Message
         run: |
