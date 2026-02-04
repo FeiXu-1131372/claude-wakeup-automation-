@@ -1,0 +1,8 @@
+{
+  "schedule": {
+    "strategy": "every-5-hours",
+    "times": ["06:00", "11:00", "16:00", "21:00"],
+    "timezone": "Pacific/Auckland",
+    "comment": "4 messages per day to create session start opportunities every 5 hours"
+  }
+}

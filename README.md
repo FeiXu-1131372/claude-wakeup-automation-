@@ -6,28 +6,45 @@ Automatically trigger your Claude Pro subscription's 5-hour rolling usage window
 
 Claude Pro subscribers have a **5-hour rolling usage window** with a cap on how many messages you can send. If you don't use Claude for 5+ hours, your quota "goes cold" and resets. But if you use it frequently, you may hit the cap and have to wait.
 
-By sending a small message every 5 hours, you can **keep your usage window warm** and maintain maximum quota availability.
+By sending a small message **every 5 hours (4 times per day)**, you create multiple session start opportunities throughout the day, ensuring you're never more than ~2.5 hours away from a quota reset.
+
+### How It Works
+
+**Schedule (NZDT):**
+- 06:00 AM → Session window: 06:00 AM - 11:00 AM
+- 11:00 AM → Session window: 11:00 AM - 04:00 PM
+- 04:00 PM → Session window: 04:00 PM - 09:00 PM
+- 09:00 PM → Session window: 09:00 PM - 02:00 AM
+
+**Key benefits:**
+- Maximum wait time reduced from 3.5+ hours to ~2.5 hours
+- No matter when you work, you're always in a recent session
+- Uses only ~4% of daily quota (1% per message)
+- 9-hour overnight gap ensures first message always starts fresh session
 
 ### Example Timeline
 
 | Time | Event | Result |
 |------|-------|--------|
-| 6:00 AM | Automated "wake-up" message sent | 5-hour window starts |
-| 9:00 AM | You start working | Window already 3 hours in |
+| 6:00 AM | Automated message #1 | 5-hour window starts |
 | 10:30 AM | You hit usage limit | Only 30 min wait until reset |
-| 11:00 AM | Window resets (5h after 6 AM) | Fresh quota available |
+| 11:00 AM | Automated message #2 | Fresh session and quota available |
+| 3:30 PM | Hit limit again | Only 30 min wait |
+| 4:00 PM | Automated message #3 | Fresh session available |
 
 Without this automation, if you started at 9:00 AM and hit the limit at 10:30 AM, you'd wait until 2:00 PM for a reset.
 
 ## How This Works
 
 This GitHub Actions workflow:
-1. Runs automatically every 5 hours at your specified time
-2. Sends a meaningful prompt to Claude using your OAuth credentials
+1. Runs automatically **4 times per day**, every 5 hours (06:00, 11:00, 16:00, 21:00 NZDT)
+2. Sends a simple prompt to Claude using your OAuth credentials (~1% quota each)
 3. Triggers your subscription-based usage (not API billing)
-4. Keeps your 5-hour rolling window active
+4. Creates multiple session start opportunities throughout the day
 
 **Key difference:** This uses **OAuth/subscription authentication**, NOT API keys. API keys use API billing, while OAuth tokens use your Claude Pro subscription.
+
+**Why 4 times per day?** Running every 5 hours aligns perfectly with Claude's 5-hour session duration, creating optimal coverage with minimal quota usage (4% daily total).
 
 ---
 
@@ -36,6 +53,7 @@ This GitHub Actions workflow:
 - A **Claude Pro subscription**
 - A **GitHub account**
 - Your **Claude OAuth token** (starts with `sk-ant-oat01-`)
+- **Node.js** (for the schedule update script, optional)
 
 ---
 
@@ -77,23 +95,30 @@ This will:
 
 ### Step 4: Customize the Schedule (Optional)
 
-By default, the workflow runs at 5:30 AM NZDT. To change this:
+By default, the workflow runs **4 times per day** at 06:00, 11:00, 16:00, and 21:00 NZDT. To change the schedule:
+
+#### Manual Edit (Currently Required)
 
 1. Open `.github/workflows/wakeup.yml`
-2. Find the `cron` line:
+2. Find the `schedule` section with 4 cron entries:
    ```yaml
-   - cron: '30 16 * * *'  # 5:30 AM NZDT (UTC+13) = 16:30 UTC
+   schedule:
+     - cron: '0 17 * * *'  # 06:00 NZDT (17:00 UTC prev day)
+     - cron: '0 22 * * *'  # 11:00 NZDT (22:00 UTC prev day)
+     - cron: '0 3 * * *'   # 16:00 NZDT (03:00 UTC)
+     - cron: '0 8 * * *'   # 21:00 NZDT (08:00 UTC)
    ```
-3. Calculate your time in UTC:
-   - **New Zealand (NZDT, UTC+13)**: 5:30 AM = `30 16 * * *`
-   - **New York (EST, UTC-5)**: 5:30 AM = `30 10 * * *`
-   - **London (GMT, UTC+0)**: 5:30 AM = `30 5 * * *`
-   - **Tokyo (JST, UTC+9)**: 5:30 AM = `30 20 * * *`
-4. Update the cron format: `minute hour * * *`
+3. Adjust times for your timezone, keeping the 5-hour spacing
+4. Calculate UTC times:
+   - **New Zealand (NZDT, UTC+13)**: Local time - 13 hours (previous day if < 13:00)
+   - **New York (EST, UTC-5)**: Local time + 5 hours
+   - **London (GMT, UTC+0)**: Same as local time
+   - **Tokyo (JST, UTC+9)**: Local time - 9 hours
 
-**Cron format:** `minute hour day month day_of_week`
-- Example: `30 16 * * *` = 16:30 UTC every day
-- Every 5 hours: `0 */5 * * *`
+**Cron format:** `minute hour * * *`
+- Example: `0 17 * * *` = 17:00 UTC (5:00 PM UTC) every day
+
+> **Note:** The `update-schedule.js` script currently only supports single daily schedules. Multi-time support is a future enhancement.
 
 ### Step 5: Enable GitHub Actions
 
@@ -191,22 +216,38 @@ PROMPTS=(
 )
 ```
 
-### Change Run Frequency
+Keep prompts simple to minimize quota usage (~1% per message).
 
-To run every N hours instead of daily:
+### Change the Schedule Times
 
+The default 4x daily schedule (06:00, 11:00, 16:00, 21:00) is optimized for 5-hour coverage. To adjust:
+
+1. Edit `.github/workflows/wakeup.yml`
+2. Modify the 4 cron entries, maintaining 5-hour spacing
+3. Ensure 8-9 hour gap overnight so first message starts fresh session
+
+**Example for different timezone:**
 ```yaml
 schedule:
-  - cron: '0 */5 * * *'  # Every 5 hours
+  - cron: '0 12 * * *'  # 7:00 AM EST
+  - cron: '0 17 * * *'  # 12:00 PM EST
+  - cron: '0 22 * * *'  # 5:00 PM EST
+  - cron: '0 3 * * *'   # 10:00 PM EST
 ```
 
-### Run at Multiple Times
+### Alternative Strategies
 
-```yaml
-schedule:
-  - cron: '30 16 * * *'  # 5:30 AM NZDT
-  - cron: '0 2 * * *'    # Another time
-```
+**3x daily (every 6-7 hours):**
+- Lower quota usage (3%)
+- Less optimal coverage
+- Longer maximum wait times
+
+**Once daily:**
+- Minimal quota usage (1%)
+- Much longer wait times (3.5+ hours)
+- Original simple approach
+
+The 4x daily schedule is recommended as the optimal balance.
 
 ---
 
