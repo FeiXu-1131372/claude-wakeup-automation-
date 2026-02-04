@@ -24,13 +24,13 @@ jobs:
 
       - name: Send Wake-Up Message
         run: |
-          # Array of varied, token-intensive prompts
+          # Array of simple, low-token prompts (~1% quota usage)
           PROMPTS=(
-            "Explain the concept of recursion in computer science with examples, then compare it with iterative approaches. Include time and space complexity analysis for common algorithms like factorial, Fibonacci, and tree traversal."
-            "Describe the history and evolution of version control systems from SCCS to Git. Compare centralized vs distributed models, and explain branching strategies like Git Flow and trunk-based development."
-            "Write a comprehensive overview of design patterns in software engineering. Cover creational, structural, and behavioral patterns with practical examples for Singleton, Factory, Observer, Strategy, and Decorator patterns."
-            "Explain the differences between SQL and NoSQL databases. Discuss ACID properties, CAP theorem, and when to use relational vs document vs key-value vs graph databases with specific use cases."
-            "Provide a detailed explanation of containerization and orchestration. Cover Docker concepts (images, containers, Dockerfile), and Kubernetes architecture (pods, services, deployments, namespaces) with practical examples."
+            "What's 2+2?"
+            "Say hello in three words."
+            "Tell me a random number."
+            "What day is today?"
+            "Name one programming language."
           )
           # Select random prompt
           SELECTED_PROMPT=${PROMPTS[$RANDOM % ${#PROMPTS[@]}]}
