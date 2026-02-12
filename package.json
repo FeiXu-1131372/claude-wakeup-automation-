@@ -1,0 +1,8 @@
+{
+  "name": "claude-auto-roller",
+  "version": "1.0.0",
+  "description": "Claude wake-up automation scheduler",
+  "scripts": {
+    "update-schedule": "node update-schedule.js"
+  }
+}
