@@ -43,6 +43,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: gautamkrishnar/keepalive-workflow@v2
-        with:
-          time_elapsed: 50
+      - name: Keepalive commit if repo inactive >50 days
+        run: |
+          LAST_COMMIT=$(git log -1 --format=%ct)
+          NOW=$(date +%s)
+          DAYS_SINCE=$(( (NOW - LAST_COMMIT) / 86400 ))
+          if [ "$DAYS_SINCE" -ge 50 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keepalive to prevent workflow auto-disable"
+            git push
+          else
+            echo "Last commit was ${DAYS_SINCE} days ago, no keepalive needed."
+          fi
