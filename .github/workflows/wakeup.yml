@@ -11,7 +11,6 @@ on:
 jobs:
   wakeup:
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Setup Node.js
@@ -20,12 +19,35 @@ jobs:
           node-version: '18'
 
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@stable
 
-      - name: Configure Claude Credentials
-        run: mkdir -p ~/.claude && echo '{"claudeAiOauth":{"accessToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","refreshToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","scopes":["user:inference","user:profile"],"subscriptionType":"pro"}}' > ~/.claude/.credentials.json && chmod 600 ~/.claude/.credentials.json
+      - name: Configure Claude Authentication
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "CLAUDE_OAUTH_TOKEN is empty or unavailable in this workflow run."
+            exit 1
+          fi
+
+          if [[ "${CLAUDE_CODE_OAUTH_TOKEN}" != sk-ant-oat01-* ]]; then
+            echo "CLAUDE_OAUTH_TOKEN does not look like a Claude OAuth token."
+            exit 1
+          fi
+
+          # Write credentials via Node to avoid JSON/newline escaping problems.
+          mkdir -p ~/.claude
+          node -e "const fs=require('fs');const p=process.env.CLAUDE_CODE_OAUTH_TOKEN;const out={claudeAiOauth:{accessToken:p,refreshToken:p,scopes:['user:inference','user:profile'],subscriptionType:'pro'}};fs.writeFileSync(process.env.HOME+'/.claude/.credentials.json',JSON.stringify(out));"
+          chmod 600 ~/.claude/.credentials.json
+
+          claude auth status --json | tee /tmp/claude-auth-status.json
+          grep -q '"loggedIn": true' /tmp/claude-auth-status.json || (echo "Claude auth preflight failed."; exit 1)
 
       - name: Send Wake-Up Message
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
         run: |
           # Array of simple, low-token prompts (~1% quota usage)
           PROMPTS=(
