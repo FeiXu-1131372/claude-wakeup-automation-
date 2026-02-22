@@ -8,6 +8,8 @@ on:
 jobs:
   wakeup:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
 
     steps:
       - name: Setup Node.js
@@ -54,21 +56,152 @@ jobs:
           # Verify we wrote valid JSON credentials (version-safe; no auth subcommand dependency).
           node -e "const fs=require('fs'); const p=process.env.HOME+'/.claude/.credentials.json'; JSON.parse(fs.readFileSync(p,'utf8')); console.log('credentials_json_valid=true');"
 
+      - name: Restore Prompt Selection State
+        id: prompt_state_restore
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/claude-wakeup-state
+          key: prompt-state-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            prompt-state-${{ github.ref_name }}-
+
       - name: Send Wake-Up Message
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
         run: |
-          # Array of simple, low-token prompts (~1% quota usage)
+          # 100 varied, human-like, low-token prompts
           PROMPTS=(
-            "What's 2+2?"
-            "Say hello in three words."
-            "Tell me a random number."
-            "What day is today?"
-            "Name one programming language."
+            "Morning check-in: greet me in three words."
+            "How is your vibe right now? Four words max."
+            "Quick math: 7 + 5 = ?"
+            "Pick any number between 10 and 99."
+            "What is today's weekday? One word."
+            "Current month in one word."
+            "Write a tiny to-do for me, five words."
+            "Suggest a two-minute stretch in one sentence."
+            "Give a one-line focus reminder."
+            "Drop a short positive affirmation."
+            "Reply with a single emoji."
+            "Choose a weather word: sunny, rainy, or cloudy."
+            "Type a color that feels calm."
+            "Share a fruit you would snack on."
+            "Suggest tea or coffee in one word."
+            "Recommend a ten-minute break activity."
+            "Give a short desk-posture tip."
+            "Write a micro-journal prompt, six words."
+            "Pick a random letter A-Z."
+            "Pick a random day number from 1 to 31."
+            "Give a gentle reminder to drink water."
+            "Write a four-word productivity mantra."
+            "Offer a one-sentence breathing cue."
+            "Give one simple kindness idea for today."
+            "Suggest a tiny coding warmup."
+            "Output one common git command."
+            "Output one useful shell alias."
+            "Suggest a compact commit message example."
+            "Give one keyboard shortcut for VS Code."
+            "Mention one debugging habit in five words."
+            "Share a quick code-review checklist item."
+            "Pick between tabs or spaces, one word."
+            "Choose frontend or backend, one word."
+            "Choose tea, coffee, or water."
+            "Suggest a playlist mood in two words."
+            "Write a tiny evening shutdown ritual."
+            "Give a one-sentence sleep hygiene tip."
+            "Share a simple gratitude prompt."
+            "Give one word that means momentum."
+            "Give one word that means rest."
+            "Pick a time-block length: 25, 30, or 45."
+            "Offer a one-line anti-procrastination tip."
+            "Write a short start-now nudge."
+            "Suggest a tiny cleanup task."
+            "Choose a random punctuation mark."
+            "Reply with today's energy level 1-10."
+            "Give a quick inbox-zero action."
+            "Suggest a one-minute desk reset."
+            "Write a six-word pep talk."
+            "Pick an animal mascot for focus."
+            "Suggest a healthy snack in three words."
+            "Give one sentence on staying consistent."
+            "Output a single Unix command to list files."
+            "Share a five-word reminder for breaks."
+            "Pick one: plan, build, or review."
+            "Give a short phrase for deep work."
+            "Suggest a micro-goal for the next hour."
+            "Offer a one-line meeting-prep tip."
+            "Give a one-line note-taking tip."
+            "Write a two-word mood label."
+            "Pick a random prime number under 50."
+            "Answer yes or no: ready to focus?"
+            "Choose morning or night, one word."
+            "Suggest a tiny learning task for today."
+            "Provide one sentence about momentum."
+            "Give a short ship-it phrase."
+            "Pick one season and one-word reason."
+            "Recommend a short walk duration in minutes."
+            "Share a compact hydration reminder."
+            "Choose left or right at random."
+            "Give a one-line tip for cleaner code."
+            "Suggest one sentence for a standup update."
+            "Write a tiny success definition for today."
+            "Offer one sentence to reduce stress."
+            "Provide a two-step reset in one sentence."
+            "Suggest one folder to declutter first."
+            "Give a one-line digital wellbeing tip."
+            "Pick a random hex color code."
+            "Return one ASCII emoticon."
+            "Pick a random consonant."
+            "Give one sentence about patience."
+            "Suggest a simple reward after a task."
+            "Write a three-word sign-off message."
+            "Offer one quick confidence boost."
+            "Choose one: read, write, or build."
+            "Give a small habit-stack idea."
+            "Suggest a one-line planning question."
+            "Return one punctuation-only smiley."
+            "Pick a random even number under 40."
+            "Offer one sentence for better commits."
+            "Give one line to start difficult work."
+            "Suggest a tiny refactor target."
+            "Share one sentence on avoiding context switching."
+            "Pick one word for today's theme."
+            "Give a brief reminder to stretch shoulders."
+            "Suggest a simple terminal tip."
+            "Return a short hello in another language."
+            "Pick one letter and one number."
+            "Give one-line advice for a steady pace."
+            "End with a three-word encouragement."
           )
-          # Select random prompt
-          SELECTED_PROMPT=${PROMPTS[$RANDOM % ${#PROMPTS[@]}]}
+
+          # Select random prompt while avoiding an immediate repeat from the prior run.
+          STATE_DIR="/tmp/claude-wakeup-state"
+          STATE_FILE="${STATE_DIR}/last_prompt_index.txt"
+          mkdir -p "${STATE_DIR}"
+
+          LAST_INDEX=-1
+          if [ -f "${STATE_FILE}" ]; then
+            LAST_INDEX=$(cat "${STATE_FILE}" || echo -1)
+          fi
+
+          PROMPT_COUNT=${#PROMPTS[@]}
+          SELECTED_INDEX=$((RANDOM % PROMPT_COUNT))
+          if [ "${PROMPT_COUNT}" -gt 1 ] && [ "${LAST_INDEX}" -ge 0 ] && [ "${SELECTED_INDEX}" -eq "${LAST_INDEX}" ]; then
+            SELECTED_INDEX=$(((SELECTED_INDEX + 1 + (RANDOM % (PROMPT_COUNT - 1))) % PROMPT_COUNT))
+          fi
+
+          echo "${SELECTED_INDEX}" > "${STATE_FILE}"
+          SELECTED_PROMPT=${PROMPTS[$SELECTED_INDEX]}
+          echo "Selected prompt index: ${SELECTED_INDEX}"
           claude -p "$SELECTED_PROMPT"
+
+      - name: Save Prompt Selection State
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/claude-wakeup-state
+          key: prompt-state-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   keepalive:
     runs-on: ubuntu-latest
