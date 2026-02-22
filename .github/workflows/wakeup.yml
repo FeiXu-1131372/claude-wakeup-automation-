@@ -2,7 +2,7 @@ name: Claude Wake-Up Automation
 
 on:
   schedule:
-    - cron: '7 17 * * *'  # 06:07 NZDT (17:07 UTC prev day)
+    - cron: '0 17 * * *'  # Base trigger: 06:00 NZDT (17:00 UTC prev day); runtime jitter adds 0-59 minutes
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
@@ -20,6 +20,15 @@ jobs:
 
       - name: Verify Claude CLI Version
         run: claude --version
+
+      - name: Apply Startup Jitter (0-59 minutes)
+        run: |
+          set -euo pipefail
+          JITTER_MINUTES=$((RANDOM % 60))
+          JITTER_SECONDS=$((RANDOM % 60))
+          TOTAL_DELAY=$((JITTER_MINUTES * 60 + JITTER_SECONDS))
+          echo "Applying startup jitter: ${JITTER_MINUTES}m ${JITTER_SECONDS}s"
+          sleep "${TOTAL_DELAY}"
 
       - name: Configure Claude Authentication
         env:

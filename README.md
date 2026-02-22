@@ -1,154 +1,43 @@
-# Claude AutoRoller - Auto-Refresh Your Claude Pro Quota
+# Claude AutoRoller
 
-Automatically trigger your Claude Pro subscription's 5-hour rolling usage window reset by sending scheduled messages to Claude via GitHub Actions.
+Run a lightweight Claude prompt from GitHub Actions on a fixed schedule to keep your Claude usage "warm" using OAuth/subscription auth (not API billing auth).
 
-## The Problem
+## Current behavior (as implemented)
 
-Claude Pro subscribers have a **5-hour rolling usage window** with a cap on how many messages you can send. If you don't use Claude for 5+ hours, your quota "goes cold" and resets. But if you use it frequently, you may hit the cap and have to wait.
+- Workflow file: `.github/workflows/wakeup.yml`
+- Frequency: **once daily**
+- Base cron: `0 17 * * *` (06:00 NZDT, 17:00 UTC previous day)
+- Runtime jitter: random `0-59` minutes (`+ random seconds`)
+- Effective daily run window: **06:00-06:59 NZDT**
+- Manual runs are enabled via `workflow_dispatch`
+- Claude Code CLI is pinned to: `@anthropic-ai/claude-code@2.1.39`
 
-By sending a small message **every 5 hours (4 times per day)**, you create multiple session start opportunities throughout the day, ensuring you're never more than ~2.5 hours away from a quota reset.
+## What the workflow does
 
-### How It Works
+The `wakeup` job:
+1. Installs Node 18
+2. Installs Claude Code CLI `2.1.39`
+3. Verifies CLI version
+4. Waits a random startup delay (`0-59` minutes, plus random seconds)
+5. Reads secret `CLAUDE_OAUTH_TOKEN`
+6. Validates token presence and prefix (`sk-ant-oat01-`)
+7. Writes `~/.claude/.credentials.json` using Node (safe JSON generation)
+8. Sets file permission to `600`
+9. Sends one prompt with `claude -p "<prompt>"`
 
-**Schedule (NZDT):**
-- 06:00 AM → Session window: 06:00 AM - 11:00 AM
-- 11:00 AM → Session window: 11:00 AM - 04:00 PM
-- 04:00 PM → Session window: 04:00 PM - 09:00 PM
-- 09:00 PM → Session window: 09:00 PM - 02:00 AM
+The `keepalive` job:
+1. Checks last commit age
+2. Creates and pushes an empty commit when inactivity is `>= 50` days (to avoid workflow auto-disable)
 
-**Key benefits:**
-- Maximum wait time reduced from 3.5+ hours to ~2.5 hours
-- No matter when you work, you're always in a recent session
-- Uses only ~4% of daily quota (1% per message)
-- 9-hour overnight gap ensures first message always starts fresh session
+## Authentication model
 
-### Example Timeline
+This project uses Claude OAuth token auth (subscription path):
 
-| Time | Event | Result |
-|------|-------|--------|
-| 6:00 AM | Automated message #1 | 5-hour window starts |
-| 10:30 AM | You hit usage limit | Only 30 min wait until reset |
-| 11:00 AM | Automated message #2 | Fresh session and quota available |
-| 3:30 PM | Hit limit again | Only 30 min wait |
-| 4:00 PM | Automated message #3 | Fresh session available |
+- Secret name: `CLAUDE_OAUTH_TOKEN`
+- Expected token shape: starts with `sk-ant-oat01-`
+- Credential file generated at runtime: `~/.claude/.credentials.json`
 
-Without this automation, if you started at 9:00 AM and hit the limit at 10:30 AM, you'd wait until 2:00 PM for a reset.
-
-## How This Works
-
-This GitHub Actions workflow:
-1. Runs automatically **4 times per day**, every 5 hours (06:00, 11:00, 16:00, 21:00 NZDT)
-2. Sends a simple prompt to Claude using your OAuth credentials (~1% quota each)
-3. Triggers your subscription-based usage (not API billing)
-4. Creates multiple session start opportunities throughout the day
-
-**Key difference:** This uses **OAuth/subscription authentication**, NOT API keys. API keys use API billing, while OAuth tokens use your Claude Pro subscription.
-
-**Why 4 times per day?** Running every 5 hours aligns perfectly with Claude's 5-hour session duration, creating optimal coverage with minimal quota usage (4% daily total).
-
----
-
-## Prerequisites
-
-- A **Claude Pro subscription**
-- A **GitHub account**
-- Your **Claude OAuth token** (starts with `sk-ant-oat01-`)
-- **Node.js** (for the schedule update script, optional)
-
----
-
-## Step-by-Step Setup
-
-### Step 1: Get Your Claude OAuth Token
-
-Open a terminal and run:
-
-```bash
-claude setup-token
-```
-
-This will:
-1. Open a browser window for authentication
-2. Display your OAuth token (starts with `sk-ant-oat01-`)
-3. **Copy this token** - you'll need it for the next step
-
-> **Note:** This OAuth token is for CLI/subscription usage. It's different from API keys (which start with `sk-ant-api03-`).
-
-### Step 2: Fork or Copy This Repository
-
-**Option A: Use this template**
-1. Click "Use this template" on GitHub
-2. Create a new repository in your account
-
-**Option B: Fork the repository**
-1. Click "Fork" at the top right
-2. Select your GitHub account
-
-### Step 3: Add Your OAuth Token as a GitHub Secret
-
-1. Go to your new repository on GitHub
-2. Click **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Name: `CLAUDE_OAUTH_TOKEN`
-5. Value: Paste your OAuth token from Step 1
-6. Click **Add secret**
-
-### Step 4: Customize the Schedule (Optional)
-
-By default, the workflow runs **4 times per day** at 06:00, 11:00, 16:00, and 21:00 NZDT. To change the schedule:
-
-#### Manual Edit (Currently Required)
-
-1. Open `.github/workflows/wakeup.yml`
-2. Find the `schedule` section with 4 cron entries:
-   ```yaml
-   schedule:
-     - cron: '0 17 * * *'  # 06:00 NZDT (17:00 UTC prev day)
-     - cron: '0 22 * * *'  # 11:00 NZDT (22:00 UTC prev day)
-     - cron: '0 3 * * *'   # 16:00 NZDT (03:00 UTC)
-     - cron: '0 8 * * *'   # 21:00 NZDT (08:00 UTC)
-   ```
-3. Adjust times for your timezone, keeping the 5-hour spacing
-4. Calculate UTC times:
-   - **New Zealand (NZDT, UTC+13)**: Local time - 13 hours (previous day if < 13:00)
-   - **New York (EST, UTC-5)**: Local time + 5 hours
-   - **London (GMT, UTC+0)**: Same as local time
-   - **Tokyo (JST, UTC+9)**: Local time - 9 hours
-
-**Cron format:** `minute hour * * *`
-- Example: `0 17 * * *` = 17:00 UTC (5:00 PM UTC) every day
-
-> **Note:** The `update-schedule.js` script currently only supports single daily schedules. Multi-time support is a future enhancement.
-
-### Step 5: Enable GitHub Actions
-
-1. Go to your repository's **Actions** tab
-2. If prompted, click **I understand my workflows, go ahead and enable them**
-3. Click **workflow.yml** on the left
-4. Click **Run workflow** → **Run workflow** to test manually
-
-### Step 6: Verify It Works
-
-1. In the Actions tab, click on the latest workflow run
-2. You should see a green checkmark if successful
-3. Click the job to see the logs - Claude should have responded to the prompt
-
----
-
-## Understanding the Authentication
-
-### Why This Uses OAuth (Not API Keys)
-
-| Method | Used For | Billing |
-|--------|----------|---------|
-| **OAuth Token** (`sk-ant-oat01-`) | Claude Code CLI, Subscription | Your Pro subscription quota |
-| **API Key** (`sk-ant-api03-`) | Direct API calls | API billing (separate from subscription) |
-
-This workflow uses OAuth so it counts against your **Pro subscription quota**, not API billing.
-
-### How Credentials Are Stored
-
-The workflow creates a `~/.claude/.credentials.json` file in the GitHub Actions runner with this format:
+Credential shape written by workflow:
 
 ```json
 {
@@ -161,112 +50,58 @@ The workflow creates a `~/.claude/.credentials.json` file in the GitHub Actions 
 }
 ```
 
-This approach works around a known bug where `CLAUDE_CODE_OAUTH_TOKEN` environment variable is ignored on Linux (GitHub Issue #8938).
+## Setup
 
----
+1. Run `claude setup-token` locally to create a long-lived OAuth token.
+2. In GitHub: `Settings -> Secrets and variables -> Actions`.
+3. Add repository secret:
+   - Name: `CLAUDE_OAUTH_TOKEN`
+   - Value: the full token from step 1
+4. Trigger `Claude Wake-Up Automation` manually once from the Actions tab.
+5. Verify logs show:
+   - Claude CLI version is `2.1.39`
+   - `Configure Claude Authentication` completes
+   - `Send Wake-Up Message` completes
+
+## Change frequency or time
+
+Edit `.github/workflows/wakeup.yml`:
+
+```yaml
+on:
+  schedule:
+    - cron: '0 17 * * *'
+```
+
+Cron is UTC and acts as the base trigger. Current mapping:
+- `0 17 * * *` = 17:00 UTC = 06:00 NZDT (next local day when UTC+13)
+- Workflow then applies a random delay up to 59 minutes, so execution occurs between 06:00 and 06:59 NZDT.
 
 ## Troubleshooting
 
-### "Invalid API key · Please run /login"
+### `CLAUDE_OAUTH_TOKEN is empty or unavailable`
+- Secret is missing, misspelled, or inaccessible to this workflow context.
+- Confirm exact name: `CLAUDE_OAUTH_TOKEN`.
 
-**Cause:** Wrong credentials format or OAuth token not working on Linux.
+### `CLAUDE_OAUTH_TOKEN does not look like a Claude OAuth token`
+- Secret value is not an OAuth token (wrong key type or malformed value).
+- Use `claude setup-token` and replace secret value.
 
-**Solution:** Make sure your workflow uses the nested `claudeAiOauth` format (not `oauthToken`):
+### `Not logged in` / `Please run /login`
+- Token is invalid/expired/suspended or has hidden whitespace corruption.
+- Rotate token and paste again as a single-line value.
 
-```yaml
-run: mkdir -p ~/.claude && echo '{"claudeAiOauth":{"accessToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","refreshToken":"${{ secrets.CLAUDE_OAUTH_TOKEN }}","scopes":["user:inference","user:profile"],"subscriptionType":"pro"}}' > ~/.claude/.credentials.json && chmod 600 ~/.claude/.credentials.json
-```
+### `Your organization does not have access to Claude`
+- Auth token is being read, but account/org entitlement is denied server-side.
 
-### Workflow Runs But Nothing Happens
+## Security notes
 
-**Check:**
-1. GitHub Secret is named exactly `CLAUDE_OAUTH_TOKEN`
-2. OAuth token starts with `sk-ant-oat01-` (not `sk-ant-api03-`)
-3. You have an active Claude Pro subscription
-
-### Local Testing
-
-To test the credentials format locally:
-
-```bash
-# Create the credentials file
-mkdir -p ~/.claude
-echo '{"claudeAiOauth":{"accessToken":"YOUR_TOKEN","refreshToken":"YOUR_TOKEN","scopes":["user:inference","user:profile"],"subscriptionType":"pro"}}' > ~/.claude/.credentials.json
-
-# Test
-claude -p "Say hello"
-
-# Clean up
-rm ~/.claude/.credentials.json
-```
-
----
-
-## Customization
-
-### Change the Prompts
-
-Edit the `PROMPTS` array in `.github/workflows/wakeup.yml`:
-
-```yaml
-PROMPTS=(
-  "Your custom prompt here"
-  "Another prompt"
-  "Add as many as you want"
-)
-```
-
-Keep prompts simple to minimize quota usage (~1% per message).
-
-### Change the Schedule Times
-
-The default 4x daily schedule (06:00, 11:00, 16:00, 21:00) is optimized for 5-hour coverage. To adjust:
-
-1. Edit `.github/workflows/wakeup.yml`
-2. Modify the 4 cron entries, maintaining 5-hour spacing
-3. Ensure 8-9 hour gap overnight so first message starts fresh session
-
-**Example for different timezone:**
-```yaml
-schedule:
-  - cron: '0 12 * * *'  # 7:00 AM EST
-  - cron: '0 17 * * *'  # 12:00 PM EST
-  - cron: '0 22 * * *'  # 5:00 PM EST
-  - cron: '0 3 * * *'   # 10:00 PM EST
-```
-
-### Alternative Strategies
-
-**3x daily (every 6-7 hours):**
-- Lower quota usage (3%)
-- Less optimal coverage
-- Longer maximum wait times
-
-**Once daily:**
-- Minimal quota usage (1%)
-- Much longer wait times (3.5+ hours)
-- Original simple approach
-
-The 4x daily schedule is recommended as the optimal balance.
-
----
-
-## Security Notes
-
-- Your OAuth token is stored as a **GitHub Secret** - never in the code
-- The credentials file is created with `chmod 600` (owner read/write only)
-- OAuth tokens can be rotated by running `claude setup-token` again
-
----
+- Never commit tokens to the repository.
+- Keep auth only in GitHub Secrets.
+- Rotate token immediately if exposed.
 
 ## Links
 
-- [Claude Code GitHub Issue #8938](https://github.com/anthropics/claude-code/issues/8938) - Linux OAuth environment variable bug
-- [Claude Code Documentation](https://code.claude.com/docs/en/iam)
-- [Claude Pro Subscription](https://claude.ai/upgrade)
-
----
-
-## License
-
-MIT - Feel free to use and modify for your needs.
+- Claude Code IAM docs: https://code.claude.com/docs/en/iam
+- Claude Code GitHub Actions docs: https://code.claude.com/docs/en/github-actions
+- Claude Code issue #8938: https://github.com/anthropics/claude-code/issues/8938
