@@ -1,8 +1,8 @@
 {
   "schedule": {
-    "strategy": "once-daily",
-    "times": ["06:07"],
+    "strategy": "four-daily",
+    "times": ["06:00", "11:00", "16:00", "21:00"],
     "timezone": "Pacific/Auckland",
-    "comment": "1 message per day at an off-minute to reduce frequency and queue delays"
+    "comment": "4 messages per day at fixed times, no jitter"
   }
 }
