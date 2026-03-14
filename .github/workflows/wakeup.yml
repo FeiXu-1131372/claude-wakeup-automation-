@@ -44,7 +44,7 @@ jobs:
 
           # Write credentials via Node to avoid JSON/newline escaping problems.
           mkdir -p ~/.claude
-          node -e "const fs=require('fs');const p=process.env.CLAUDE_CODE_OAUTH_TOKEN;const out={claudeAiOauth:{accessToken:p,refreshToken:p,scopes:['user:inference','user:profile'],subscriptionType:'pro'}};fs.writeFileSync(process.env.HOME+'/.claude/.credentials.json',JSON.stringify(out));"
+          node -e "const fs=require('fs');const p=process.env.CLAUDE_CODE_OAUTH_TOKEN.trim();const out={claudeAiOauth:{accessToken:p,refreshToken:p,scopes:['user:inference','user:profile'],subscriptionType:'pro'}};fs.writeFileSync(process.env.HOME+'/.claude/.credentials.json',JSON.stringify(out));"
           chmod 600 ~/.claude/.credentials.json
 
           # Verify we wrote valid JSON credentials (version-safe; no auth subcommand dependency).
@@ -187,6 +187,8 @@ jobs:
           echo "${SELECTED_INDEX}" > "${STATE_FILE}"
           SELECTED_PROMPT=${PROMPTS[$SELECTED_INDEX]}
           echo "Selected prompt index: ${SELECTED_INDEX}"
+          CLAUDE_CODE_OAUTH_TOKEN=$(echo -n "${CLAUDE_CODE_OAUTH_TOKEN}" | tr -d '[:space:]')
+          export CLAUDE_CODE_OAUTH_TOKEN
           claude -p "$SELECTED_PROMPT"
 
       - name: Save Prompt Selection State
