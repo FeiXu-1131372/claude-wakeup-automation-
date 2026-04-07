@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schedule UI</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3efe7;
+      --panel: #fbf8f2;
+      --panel-strong: #f7f2ea;
+      --text: #2a241e;
+      --muted: #6f665c;
+      --line: #d9cfc1;
+      --accent: #9f4d2b;
+      --accent-strong: #7a371a;
+      --success: #1f6a43;
+      --error: #a33131;
+      --shadow: 0 20px 60px rgba(72, 46, 28, 0.12);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(159, 77, 43, 0.16), transparent 30%),
+        linear-gradient(180deg, #f6f0e6 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      width: min(1100px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding: clamp(24px, 5vw, 40px);
+      border: 1px solid rgba(126, 93, 58, 0.22);
+      background: linear-gradient(135deg, rgba(255, 250, 242, 0.92), rgba(247, 239, 227, 0.92));
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.78rem;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 4.8rem);
+      line-height: 0.92;
+      max-width: 10ch;
+      font-weight: 700;
+    }
+
+    .hero-copy {
+      max-width: 55ch;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.6;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 14px;
+      border: 1px solid rgba(126, 93, 58, 0.22);
+      background: rgba(255, 252, 246, 0.85);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(290px, 0.9fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(251, 248, 242, 0.94);
+      border: 1px solid rgba(126, 93, 58, 0.22);
+      box-shadow: var(--shadow);
+    }
+
+    .editor {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .preview {
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      position: sticky;
+      top: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+    }
+
+    .section-copy {
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.5;
+      max-width: 45ch;
+    }
+
+    .time-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .time-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(126, 93, 58, 0.18);
+    }
+
+    .time-row label {
+      display: grid;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input[type="time"] {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      background: #fffdf9;
+      color: var(--text);
+      font: inherit;
+      font-size: 1rem;
+    }
+
+    button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    .ghost {
+      padding: 12px 14px;
+      border-color: rgba(126, 93, 58, 0.22);
+      background: rgba(255, 252, 246, 0.85);
+    }
+
+    .danger {
+      min-width: 92px;
+      padding: 12px 14px;
+      border-color: rgba(163, 49, 49, 0.18);
+      background: rgba(255, 244, 244, 0.88);
+      color: var(--error);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .primary {
+      padding: 14px 18px;
+      background: var(--accent);
+      color: #fff9f3;
+      min-width: 220px;
+    }
+
+    .primary:hover:not(:disabled) {
+      background: var(--accent-strong);
+    }
+
+    .status {
+      min-height: 24px;
+      font-size: 0.96rem;
+      color: var(--muted);
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .status.error {
+      color: var(--error);
+    }
+
+    .note {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.92rem;
+      padding-top: 2px;
+    }
+
+    .preview-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .preview-item {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(126, 93, 58, 0.18);
+    }
+
+    .preview-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--text);
+    }
+
+    .chip {
+      display: inline-flex;
+      padding: 6px 10px;
+      background: rgba(255, 252, 246, 0.9);
+      border: 1px solid rgba(126, 93, 58, 0.16);
+      font-size: 0.92rem;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.9rem;
+      color: var(--accent-strong);
+    }
+
+    .empty {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .preview {
+        position: static;
+      }
+
+      .actions {
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <p class="eyebrow">Claude wake-up scheduler</p>
+      <h1>Set Auckland times and push them in one click.</h1>
+      <p class="hero-copy">
+        This updates <code>config.json</code> and <code>.github/workflows/wakeup.yml</code>, then commits and pushes only those schedule files to GitHub.
+      </p>
+      <div class="badges">
+        <span class="badge" id="timezoneBadge">Loading timezone…</span>
+        <span class="badge">GitHub Actions uses UTC cron</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <section class="panel editor">
+        <div class="section-head">
+          <div>
+            <h2>Daily run times</h2>
+            <p class="section-copy">Pick the Pacific/Auckland times you want. They will be sorted, converted to UTC, and pushed with one confirm.</p>
+          </div>
+          <button class="ghost" id="addTimeButton" type="button">Add time</button>
+        </div>
+
+        <form id="scheduleForm">
+          <div class="time-list" id="timeList"></div>
+        </form>
+
+        <div class="actions">
+          <div class="action-group">
+            <button class="ghost" id="resetButton" type="button">Reset</button>
+          </div>
+          <div class="action-group">
+            <button class="primary" id="applyButton" type="submit" form="scheduleForm">Confirm and push</button>
+          </div>
+        </div>
+
+        <div class="status" id="statusMessage">Loading saved schedule…</div>
+        <p class="note">The conversion uses the current Pacific/Auckland offset. When New Zealand switches between NZST and NZDT, run this again to keep local times aligned.</p>
+      </section>
+
+      <aside class="panel preview">
+        <div>
+          <h2>UTC preview</h2>
+          <p class="section-copy">This is the cron that will be written into GitHub Actions.</p>
+        </div>
+        <ul class="preview-list" id="previewList"></ul>
+      </aside>
+    </section>
+  </main>
+
+  <template id="timeRowTemplate">
+    <div class="time-row">
+      <label>
+        <span>Local time</span>
+        <input class="time-input" type="time" step="60" required>
+      </label>
+      <button class="danger remove-button" type="button">Remove</button>
+    </div>
+  </template>
+
+  <script>
+    const state = {
+      initialTimes: [],
+      timeZoneInfo: null
+    };
+
+    const elements = {
+      addTimeButton: document.getElementById('addTimeButton'),
+      applyButton: document.getElementById('applyButton'),
+      form: document.getElementById('scheduleForm'),
+      previewList: document.getElementById('previewList'),
+      resetButton: document.getElementById('resetButton'),
+      statusMessage: document.getElementById('statusMessage'),
+      timeList: document.getElementById('timeList'),
+      timeRowTemplate: document.getElementById('timeRowTemplate'),
+      timezoneBadge: document.getElementById('timezoneBadge')
+    };
+
+    function setStatus(message, tone = '') {
+      elements.statusMessage.textContent = message;
+      elements.statusMessage.className = `status ${tone}`.trim();
+    }
+
+    function formatTime(totalMinutes) {
+      const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+      const hours = String(Math.floor(normalized / 60)).padStart(2, '0');
+      const minutes = String(normalized % 60).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+
+    function normalizeTimes(times) {
+      if (!times.length) {
+        throw new Error('Add at least one time.');
+      }
+
+      const sorted = times.map((value) => {
+        const time = String(value || '').trim();
+        if (!/^\d{2}:\d{2}$/.test(time)) {
+          throw new Error(`Invalid time: ${time || '(empty)'}.`);
+        }
+
+        const [hours, minutes] = time.split(':').map(Number);
+        if (hours > 23 || minutes > 59) {
+          throw new Error(`Invalid time: ${time}.`);
+        }
+
+        return {
+          value: time,
+          totalMinutes: hours * 60 + minutes
+        };
+      }).sort((left, right) => left.totalMinutes - right.totalMinutes);
+
+      const seen = new Set();
+      sorted.forEach(({ value }) => {
+        if (seen.has(value)) {
+          throw new Error(`Duplicate time: ${value}.`);
+        }
+        seen.add(value);
+      });
+
+      return sorted.map(({ value }) => value);
+    }
+
+    function previewEntry(localTime) {
+      const [hours, minutes] = localTime.split(':').map(Number);
+      const totalMinutes = (hours * 60) + minutes;
+      const utcTotalMinutes = totalMinutes - state.timeZoneInfo.offsetMinutes;
+      const dayShift = utcTotalMinutes < 0 ? -1 : utcTotalMinutes >= 1440 ? 1 : 0;
+      const utcMinutes = ((utcTotalMinutes % 1440) + 1440) % 1440;
+      const utcTime = formatTime(utcMinutes);
+      const cron = `${utcMinutes % 60} ${Math.floor(utcMinutes / 60)} * * *`;
+      const shiftText = dayShift < 0 ? ' prev day' : dayShift > 0 ? ' next day' : '';
+
+      return {
+        localTime,
+        utcTime,
+        cron,
+        shiftText
+      };
+    }
+
+    function getTimesFromInputs() {
+      return Array.from(elements.timeList.querySelectorAll('.time-input'))
+        .map((input) => input.value)
+        .filter(Boolean);
+    }
+
+    function addTimeRow(value = '') {
+      const fragment = elements.timeRowTemplate.content.cloneNode(true);
+      const row = fragment.querySelector('.time-row');
+      const input = fragment.querySelector('.time-input');
+      const removeButton = fragment.querySelector('.remove-button');
+
+      input.value = value;
+      input.addEventListener('input', renderPreview);
+      removeButton.addEventListener('click', () => {
+        row.remove();
+        renderPreview();
+      });
+
+      elements.timeList.appendChild(fragment);
+      return input;
+    }
+
+    function renderRows(times) {
+      elements.timeList.innerHTML = '';
+      times.forEach((time) => addTimeRow(time));
+      if (!times.length) {
+        addTimeRow('');
+      }
+    }
+
+    function renderPreview() {
+      if (!state.timeZoneInfo) {
+        return;
+      }
+
+      try {
+        const times = normalizeTimes(getTimesFromInputs());
+        const items = times.map(previewEntry);
+
+        elements.previewList.innerHTML = items.map((item) => `
+          <li class="preview-item">
+            <div class="preview-line">
+              <span class="chip">${item.localTime} ${state.timeZoneInfo.abbreviation}</span>
+              <span>→</span>
+              <span class="chip">${item.utcTime} UTC${item.shiftText}</span>
+            </div>
+            <code>${item.cron}</code>
+          </li>
+        `).join('');
+
+        setStatus('Ready to push the updated schedule.');
+      } catch (error) {
+        elements.previewList.innerHTML = `<li class="empty">${error.message}</li>`;
+        setStatus(error.message, 'error');
+      }
+    }
+
+    function syncTimeZoneBadge() {
+      const info = state.timeZoneInfo;
+      elements.timezoneBadge.textContent = `${info.timeZone} · ${info.abbreviation} (${info.offsetLabel})`;
+    }
+
+    async function loadState() {
+      const response = await fetch('/api/state');
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load schedule.');
+      }
+
+      state.initialTimes = payload.times;
+      state.timeZoneInfo = payload.timeZoneInfo;
+      syncTimeZoneBadge();
+      renderRows(payload.times);
+      renderPreview();
+    }
+
+    elements.addTimeButton.addEventListener('click', () => {
+      const input = addTimeRow('');
+      input.focus();
+      renderPreview();
+    });
+
+    elements.resetButton.addEventListener('click', () => {
+      renderRows(state.initialTimes);
+      renderPreview();
+      setStatus('Reset to the last saved schedule.');
+    });
+
+    elements.form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      let times;
+      try {
+        times = normalizeTimes(getTimesFromInputs());
+      } catch (error) {
+        setStatus(error.message, 'error');
+        return;
+      }
+
+      elements.applyButton.disabled = true;
+      setStatus('Updating files, committing, and pushing…');
+
+      try {
+        const response = await fetch('/api/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ times })
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to apply schedule.');
+        }
+
+        state.initialTimes = payload.times;
+        state.timeZoneInfo = payload.timeZoneInfo;
+        syncTimeZoneBadge();
+        renderRows(payload.times);
+        renderPreview();
+        setStatus(payload.git?.message || 'Schedule pushed successfully.', 'success');
+      } catch (error) {
+        setStatus(error.message, 'error');
+      } finally {
+        elements.applyButton.disabled = false;
+      }
+    });
+
+    loadState().catch((error) => {
+      setStatus(error.message, 'error');
+      elements.previewList.innerHTML = `<li class="empty">${error.message}</li>`;
+    });
+  </script>
+</body>
+</html>

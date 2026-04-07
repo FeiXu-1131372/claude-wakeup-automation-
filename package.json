@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Claude wake-up automation scheduler",
   "scripts": {
-    "update-schedule": "node update-schedule.js"
+    "start": "node server.js",
+    "schedule-ui": "node server.js",
+    "update-schedule": "node update-schedule.js",
+    "test-local-auth": "node test-local-auth.js"
   }
 }
