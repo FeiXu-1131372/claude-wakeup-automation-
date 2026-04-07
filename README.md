@@ -2,13 +2,11 @@
 
 Run a lightweight Claude prompt from GitHub Actions on a fixed schedule to keep your Claude usage "warm" using OAuth/subscription auth (not API billing auth).
 
-## Current behavior (as implemented)
+## Current behavior
 
 - Workflow file: `.github/workflows/wakeup.yml`
-- Frequency: **once daily**
-- Base cron: `0 17 * * *` (06:00 NZDT, 17:00 UTC previous day)
-- Runtime jitter: random `0-59` minutes (`+ random seconds`)
-- Effective daily run window: **06:00-06:59 NZDT**
+- Frequency: **4 times daily** at fixed Pacific/Auckland times (no jitter)
+- Schedule is managed via `config.json` and applied through the local schedule UI
 - Manual runs are enabled via `workflow_dispatch`
 - Claude Code CLI is pinned to: `@anthropic-ai/claude-code@2.1.39`
 
@@ -18,12 +16,12 @@ The `wakeup` job:
 1. Installs Node 18
 2. Installs Claude Code CLI `2.1.39`
 3. Verifies CLI version
-4. Waits a random startup delay (`0-59` minutes, plus random seconds)
-5. Reads secret `CLAUDE_OAUTH_TOKEN`
-6. Validates token presence and prefix (`sk-ant-oat01-`)
-7. Writes `~/.claude/.credentials.json` using Node (safe JSON generation)
-8. Sets file permission to `600`
-9. Sends one prompt with `claude -p "<prompt>"`
+4. Reads secret `CLAUDE_OAUTH_TOKEN`
+5. Validates token presence and prefix
+6. Writes `~/.claude/.credentials.json` using Node (safe JSON generation)
+7. Sets file permission to `600`
+8. Selects a random prompt from a pool of 100 (avoiding immediate repeats)
+9. Sends the prompt with `claude -p "<prompt>"`
 
 The `keepalive` job:
 1. Checks last commit age
@@ -36,19 +34,6 @@ This project uses Claude OAuth token auth (subscription path):
 - Secret name: `CLAUDE_OAUTH_TOKEN`
 - Expected token shape: starts with `sk-ant-oat01-`
 - Credential file generated at runtime: `~/.claude/.credentials.json`
-
-Credential shape written by workflow:
-
-```json
-{
-  "claudeAiOauth": {
-    "accessToken": "sk-ant-oat01-...",
-    "refreshToken": "sk-ant-oat01-...",
-    "scopes": ["user:inference", "user:profile"],
-    "subscriptionType": "pro"
-  }
-}
-```
 
 ## Setup
 
@@ -63,19 +48,29 @@ Credential shape written by workflow:
    - `Configure Claude Authentication` completes
    - `Send Wake-Up Message` completes
 
-## Change frequency or time
+## Changing the schedule
 
-Edit `.github/workflows/wakeup.yml`:
+Use the local schedule UI — double-click `start-scheduler.command` in Finder. This opens a browser UI where you can:
 
-```yaml
-on:
-  schedule:
-    - cron: '0 17 * * *'
-```
+- Set any number of Pacific/Auckland run times
+- Preview the UTC conversion and cron expressions live
+- Click **Confirm and push** to update `config.json` and `.github/workflows/wakeup.yml` and push to GitHub in one step
 
-Cron is UTC and acts as the base trigger. Current mapping:
-- `0 17 * * *` = 17:00 UTC = 06:00 NZDT (next local day when UTC+13)
-- Workflow then applies a random delay up to 59 minutes, so execution occurs between 06:00 and 06:59 NZDT.
+The UI reads the current timezone offset for `Pacific/Auckland` at the time you click confirm, so it stays correct across NZST/NZDT transitions.
+
+Alternatively, edit `config.json` and run `npm run update-schedule` from the terminal.
+
+## Local files
+
+| File | Purpose |
+|---|---|
+| `config.json` | Source of truth for schedule times |
+| `schedule-manager.js` | Shared logic: timezone conversion, file updates, git operations |
+| `server.js` | Local HTTP server backing the schedule UI |
+| `schedule-ui.html` | Browser UI for editing and pushing schedule changes |
+| `start-scheduler.command` | macOS double-click launcher |
+| `update-schedule.js` | CLI alternative to the UI |
+| `test-local-auth.js` | Test Claude auth locally before pushing a new token |
 
 ## Troubleshooting
 
@@ -94,6 +89,12 @@ Cron is UTC and acts as the base trigger. Current mapping:
 ### `Your organization does not have access to Claude`
 - Auth token is being read, but account/org entitlement is denied server-side.
 
+### Schedule UI shows "No schedule changes to push"
+- The times you submitted match what is already in `config.json` and the workflow. Change at least one time to trigger a commit.
+
+### Port 3456 already in use
+- A previous server instance is still running. The launcher auto-kills it on startup, or run: `lsof -nP -iTCP:3456 -sTCP:LISTEN | awk 'NR>1{print $2}' | xargs kill`
+
 ## Security notes
 
 - Never commit tokens to the repository.
@@ -104,4 +105,3 @@ Cron is UTC and acts as the base trigger. Current mapping:
 
 - Claude Code IAM docs: https://code.claude.com/docs/en/iam
 - Claude Code GitHub Actions docs: https://code.claude.com/docs/en/github-actions
-- Claude Code issue #8938: https://github.com/anthropics/claude-code/issues/8938
