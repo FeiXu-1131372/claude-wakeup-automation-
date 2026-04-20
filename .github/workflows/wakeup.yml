@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '25 16 * * *'  # 04:25 NZST = 16:25 UTC prev day
     - cron: '10 21 * * *'  # 09:10 NZST = 21:10 UTC prev day
-    - cron: '20 2 * * *'  # 14:20 NZST = 02:20 UTC
+    - cron: '5 1 * * *'  # 13:05 NZST = 01:05 UTC (targets ~14:15 NZST after GitHub delay)
     - cron: '3 7 * * *'  # 19:03 NZST = 07:03 UTC
   workflow_dispatch:  # Allow manual triggering
 
